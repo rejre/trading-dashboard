@@ -48,6 +48,8 @@ class TelegramNotifier:
 class AiResearchPlatform:
     def __init__(self):
         self.notifier = TelegramNotifier()
+        self.data_updater = DataUpdater()
+        self.market_judge = MarketJudge(self.data_updater)
         self.questions = self.get_structured_questions()
 
     def get_structured_questions(self):
@@ -66,9 +68,22 @@ class AiResearchPlatform:
 
     def generate_daily_report(self):
         print(f"\n[{datetime.now()}] 正在生成AI投研报告...")
+        index_data = self.data_updater.get_stock_data("000001")
+        if index_data is None: 
+            print("[Error] Could not get index data for market status check.")
+            # 即使没有指数数据，也继续生成报告的其余部分
+            status, score = "未知", 0
+        else:
+            index_data['日期'] = pd.to_datetime(index_data['日期'])
+            status, score = self.market_judge.get_market_status_for_date(datetime.now(), index_data)
+
+        market_status = "进攻模式" if score >= 1 else "防守/空仓模式"
+
         report = {
             'title': f"天道龙魂·AI投研报告 ({datetime.now().strftime('%Y-%m-%d')})",
             'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'market_status': market_status,
+            'market_score': score, # 直接添加分数
             'sections': []
         }
 
