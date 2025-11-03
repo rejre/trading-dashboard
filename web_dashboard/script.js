@@ -11,7 +11,21 @@ async function fetchReport() {
         const data = await response.json();
 
         document.getElementById('report-title').textContent = data.title;
-        document.getElementById('update-time').textContent = data.update_time;
+        const score = data.sections.find(s => s.question.includes("天时判断"))?.answer.match(/市场分数: (\d+)/)?.[1] || 0;
+        const scoreNum = parseInt(score, 10);
+
+        document.getElementById('market-status').textContent = `${data.market_status} (市场分数: ${scoreNum})`;
+
+        const scoreBar = document.getElementById('score-bar');
+        const percentage = (scoreNum / 4) * 100; // 最高4分
+        scoreBar.style.width = `${percentage}%`;
+
+        // 根据分数设置颜色
+        if (scoreNum === 0) scoreBar.style.backgroundColor = '#6c757d'; // 灰色
+        else if (scoreNum === 1) scoreBar.style.backgroundColor = '#007bff'; // 蓝色
+        else if (scoreNum === 2) scoreBar.style.backgroundColor = '#ffc107'; // 黄色
+        else if (scoreNum === 3) scoreBar.style.backgroundColor = '#fd7e14'; // 橙色
+        else if (scoreNum >= 4) scoreBar.style.backgroundColor = '#dc3545'; // 红色
 
         const reportContent = document.getElementById('report-content');
         reportContent.innerHTML = ''; // 清空旧内容
