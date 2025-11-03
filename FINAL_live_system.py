@@ -84,7 +84,25 @@ class AiResearchPlatform:
             time.sleep(2) # 模拟处理时间
         
         self.write_report_to_json(report)
-        self.notifier.send_message(f"✅ **AI投研报告已更新**\n\n报告日期: {datetime.now().strftime('%Y-%m-%d')}\n请访问您的网页查看详情。")
+        status, score = self.market_judge.get_market_status_for_date(datetime.now(), index_data)
+        if score >= 1: self.market_status = "进攻模式"
+        else: self.market_status = "防守/空仓模式"
+
+        report = {
+            'title': f"天道龙魂·AI投研报告 ({datetime.now().strftime('%Y-%m-%d')})",
+            'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'market_status': self.market_status,
+            'market_score': score, # 直接添加分数
+            'sections': []
+        }
+
+        # (这里是生成报告其余部分的循环)
+        # ...
+
+        self.write_report_to_json(report)
+
+        message = f"🔔 **天道龙魂-盘前计划**\n\n**日期**: {datetime.now().strftime('%Y-%m-%d')}\n**天时判断**: {self.market_status} (市场分数: {score})\n**扫描范围**: 全市场（已排除ST, 共{len(self.stock_pool)}只）"
+        self.notifier.send_message(message)
         print("AI投研报告生成并推送完成。")
 
     def simulate_ai_answer(self, question):

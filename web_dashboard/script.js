@@ -11,8 +11,7 @@ async function fetchReport() {
         const data = await response.json();
 
         document.getElementById('report-title').textContent = data.title;
-        const score = data.sections.find(s => s.question.includes("天时判断"))?.answer.match(/市场分数: (\d+)/)?.[1] || 0;
-        const scoreNum = parseInt(score, 10);
+        const scoreNum = data.market_score || 0;
 
         document.getElementById('market-status').textContent = `${data.market_status} (市场分数: ${scoreNum})`;
 
