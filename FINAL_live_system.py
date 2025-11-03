@@ -12,6 +12,7 @@ import time
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
+from scipy.signal import find_peaks
 
 # =================== 配置模块 ===================
 BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
@@ -23,6 +24,13 @@ for directory in [DATA_DIR, LOG_DIR]:
 TELEGRAM_CONFIG = {
     'bot_token': '7591133084:AAFHp2GbKKaylvPeD5YEVSsHYBWhTRLDZbw',
     'chat_id': '1729192077'
+}
+
+MARKET_JUDGE_CONFIG = {
+    'index_ma_days': 20,
+    'volume_threshold': 800000000000,
+    'zt_profit_threshold': 1.5,
+    'chain_height_threshold': 4
 }
 
 # =================== 通知模块 ===================
@@ -43,6 +51,82 @@ class TelegramNotifier:
             requests.post(url, json=payload, timeout=10)
         except Exception as e:
             print(f"[Notifier Error] {e}")
+
+# =================== 数据更新模块 ===================
+class DataUpdater:
+    def __init__(self, max_retries=3, retry_delay=5):
+        self.data_dir = DATA_DIR
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+
+    def _make_request(self, func, *args, **kwargs):
+        for attempt in range(self.max_retries):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if attempt < self.max_retries - 1:
+                    time.sleep(self.retry_delay)
+                else:
+                    return None
+
+    def get_stock_data(self, code):
+        file_path = self.data_dir / f"{code}.csv"
+        if file_path.exists():
+            return pd.read_csv(file_path)
+        else:
+            self.update_single_stock_data(code)
+            if file_path.exists():
+                return pd.read_csv(file_path)
+            else:
+                return None
+
+    def update_single_stock_data(self, code):
+        df = self._make_request(ak.stock_zh_a_hist, symbol=code, period="daily", adjust="qfq")
+        if df is not None and not df.empty:
+            file_path = self.data_dir / f"{code}.csv"
+            df.to_csv(file_path, index=False)
+
+# =================== 天时裁决模块 ===================
+class MarketJudge:
+    def __init__(self, data_updater):
+        self.config = MARKET_JUDGE_CONFIG
+        self.data_updater = data_updater
+
+    def get_market_status_for_date(self, date, index_data):
+        score = 0
+        hist_index_data = index_data[index_data['日期'] <= date.strftime('%Y-%m-%d')]
+        if self._check_index_trend_hist(hist_index_data): score += 1
+        if self._check_market_volume_hist(hist_index_data): score += 1
+        if self._check_chain_height_hist(date): score += 1
+        if self._check_north_money_hist(date): score += 1
+        if score >= 3: return "进攻模式", score
+        elif score >= 2: return "防守模式", score
+        else: return "空仓模式", score
+
+    def _check_index_trend_hist(self, hist_index_data):
+        if len(hist_index_data) < self.config['index_ma_days']: return False
+        current_price = hist_index_data.iloc[-1]['收盘']
+        ma = hist_index_data['收盘'].rolling(self.config['index_ma_days']).mean().iloc[-1]
+        return current_price > ma
+
+    def _check_market_volume_hist(self, hist_index_data):
+        today_volume = hist_index_data.iloc[-1]['成交额']
+        return today_volume > self.config['volume_threshold']
+
+    def _check_chain_height_hist(self, date):
+        try:
+            zt_pool = ak.stock_zt_pool_em(date=date.strftime("%Y%m%d"))
+            if zt_pool.empty: return False
+            return zt_pool['lbc'].max() >= self.config['chain_height_threshold']
+        except Exception: return False
+
+    def _check_north_money_hist(self, date):
+        try:
+            north_flow = ak.stock_hsgt_north_net_flow_in_em(symbol="北向资金")
+            flow_on_date = north_flow[north_flow['日期'] == date.strftime('%Y-%m-%d')]
+            if flow_on_date.empty: return False
+            return flow_on_date.iloc[0]['净流入'] > 0
+        except Exception: return False
 
 # =================== AI投研报告生成器 ===================
 class AiResearchPlatform:
@@ -71,7 +155,6 @@ class AiResearchPlatform:
         index_data = self.data_updater.get_stock_data("000001")
         if index_data is None: 
             print("[Error] Could not get index data for market status check.")
-            # 即使没有指数数据，也继续生成报告的其余部分
             status, score = "未知", 0
         else:
             index_data['日期'] = pd.to_datetime(index_data['日期'])
@@ -83,46 +166,24 @@ class AiResearchPlatform:
             'title': f"天道龙魂·AI投研报告 ({datetime.now().strftime('%Y-%m-%d')})",
             'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'market_status': market_status,
-            'market_score': score, # 直接添加分数
+            'market_score': score,
             'sections': []
         }
 
         for i, question in enumerate(self.questions):
-            # 在真实场景中，这里会是复杂的AI调用和网络搜索
-            # 为了模拟，我们生成一个基于模板的答案
             print(f"正在处理问题 {i+1}/{len(self.questions)}...")
             answer = self.simulate_ai_answer(question)
             report['sections'].append({
                 'question': question.split('：')[0],
                 'answer': answer
             })
-            time.sleep(2) # 模拟处理时间
+            time.sleep(1) # 模拟处理时间
         
         self.write_report_to_json(report)
-        status, score = self.market_judge.get_market_status_for_date(datetime.now(), index_data)
-        if score >= 1: self.market_status = "进攻模式"
-        else: self.market_status = "防守/空仓模式"
-
-        report = {
-            'title': f"天道龙魂·AI投研报告 ({datetime.now().strftime('%Y-%m-%d')})",
-            'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'market_status': self.market_status,
-            'market_score': score, # 直接添加分数
-            'sections': []
-        }
-
-        # (这里是生成报告其余部分的循环)
-        # ...
-
-        self.write_report_to_json(report)
-
-        message = f"🔔 **天道龙魂-盘前计划**\n\n**日期**: {datetime.now().strftime('%Y-%m-%d')}\n**天时判断**: {self.market_status} (市场分数: {score})\n**扫描范围**: 全市场（已排除ST, 共{len(self.stock_pool)}只）"
-        self.notifier.send_message(message)
+        self.notifier.send_message(f"✅ **AI投研报告已更新**\n\n报告日期: {datetime.now().strftime('%Y-%m-%d')}\n请访问您的网页查看详情。")
         print("AI投研报告生成并推送完成。")
 
     def simulate_ai_answer(self, question):
-        # 这是一个模拟函数，它会返回一个基于模板的答案
-        # 在一个真实的、更复杂的实现中，这里会调用Google Search等工具
         if "市场分析" in question:
             return "根据对近期A股市场的分析，**新能源汽车**和**半导体**板块显示出强劲的增长势头。政策扶持和产业链成熟是主要驱动力。未来一周，建议关注这两个方向的上游材料和设备供应商。"
         elif "投资组合" in question:
@@ -144,9 +205,7 @@ class AiResearchPlatform:
 # =================== 主程序入口 ===================
 if __name__ == "__main__":
     platform = AiResearchPlatform()
-    # 每天早上8点执行一次报告生成
     schedule.every().day.at("08:00").do(platform.generate_daily_report)
-    # 启动时先立即执行一次
     platform.generate_daily_report()
     print("--- AI投研平台已激活，等待定时任务... ---")
     while True:
