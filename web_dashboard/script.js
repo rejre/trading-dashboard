@@ -13,13 +13,16 @@ async function fetchReport() {
         document.getElementById('report-title').textContent = data.title;
         const scoreNum = data.market_score || 0;
 
-        document.getElementById('market-status').textContent = `${data.market_status} (市场分数: ${scoreNum})`;
+        document.getElementById('market-status').textContent = `${data.market_status}`;
 
         const scoreBar = document.getElementById('score-bar');
         const percentage = (scoreNum / 4) * 100; // 最高4分
         scoreBar.style.width = `${percentage}%`;
 
         // 根据分数设置颜色
+        const scoreValueSpan = document.getElementById('score-value');
+        scoreValueSpan.textContent = `(市场分数: ${scoreNum})`;
+
         if (scoreNum === 0) scoreBar.style.backgroundColor = '#6c757d'; // 灰色
         else if (scoreNum === 1) scoreBar.style.backgroundColor = '#007bff'; // 蓝色
         else if (scoreNum === 2) scoreBar.style.backgroundColor = '#ffc107'; // 黄色
