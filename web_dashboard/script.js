@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchStatus() {
     // 在部署后，这里需要替换为你的GitHub Raw文件的URL
-    const url = '../status.json'; 
+    const url = 'https://raw.githubusercontent.com/rejre/trading-dashboard/main/status.json'; 
 
     try {
         const response = await fetch(url + `?t=${new Date().getTime()}`); // 添加时间戳防止缓存

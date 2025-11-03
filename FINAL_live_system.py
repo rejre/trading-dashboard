@@ -211,15 +211,20 @@ class MainCommander:
             'live_portfolio': self.live_portfolio,
             'last_signals': self.last_signals
         }
-        # 将status对象序列化为JSON格式的字符串
-        # 注意：直接序列化datetime对象会出错，所以所有时间都已转为字符串
         def default_serializer(o):
             if isinstance(o, (datetime, pd.Timestamp)):
                 return o.isoformat()
             raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
 
-        with open(BASE_DIR / 'status.json', 'w', encoding='utf-8') as f:
-            json.dump(status, f, ensure_ascii=False, indent=4, default=default_serializer)
+        try:
+            with open(BASE_DIR / 'status.json', 'w', encoding='utf-8') as f:
+                json.dump(status, f, ensure_ascii=False, indent=4, default=default_serializer)
+            
+            # 自动推送到GitHub
+            print("Pushing status to GitHub...")
+            os.system(f"cd {BASE_DIR} && git add status.json && git commit -m \"Update status: {datetime.now().strftime('%Y-%m-%d %H:%M')}\" && git push")
+        except Exception as e:
+            print(f"[Error] Failed to write or push status.json: {e}")
 
 
     def run_live_operation(self):
