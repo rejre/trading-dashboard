@@ -3,28 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>天道龙魂·闪电战 监控系统</title>
+    <title>天道龙魂·AI投研平台</title>
     <link rel="stylesheet" href="web_dashboard/style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>天道龙魂·闪电战 监控系统</h1>
-            <p>最后更新时间: <span id="update-time">--</span></p>
+            <h1 id="report-title">--</h1>
+            <p>报告生成时间: <span id="update-time">--</span></p>
         </header>
-        <main>
-            <div class="card">
-                <h2>天时状态</h2>
-                <p id="market-status">--</p>
-            </div>
-            <div class="card">
-                <h2>实时持仓</h2>
-                <ul id="portfolio-list"><li>暂无持仓</li></ul>
-            </div>
-            <div class="card">
-                <h2>最新信号</h2>
-                <ul id="signals-list"><li>暂无信号</li></ul>
-            </div>
+        <main id="report-content">
+            <!-- AI生成的报告章节将在这里动态插入 -->
         </main>
     </div>
     <script src="web_dashboard/script.js"></script>

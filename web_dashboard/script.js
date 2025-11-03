@@ -1,44 +1,43 @@
 document.addEventListener('DOMContentLoaded', () => {
-    fetchStatus();
-    setInterval(fetchStatus, 60000); // 每60秒刷新一次
+    fetchReport();
+    setInterval(fetchReport, 300000); // 每5分钟刷新一次报告
 });
 
-async function fetchStatus() {
-    // 在部署后，这里需要替换为你的GitHub Raw文件的URL
-    const url = 'https://raw.githubusercontent.com/rejre/trading-dashboard/main/status.json'; 
+async function fetchReport() {
+    const url = 'https://raw.githubusercontent.com/rejre/trading-dashboard/main/status.json';
 
     try {
-        const response = await fetch(url + `?t=${new Date().getTime()}`); // 添加时间戳防止缓存
+        const response = await fetch(url + `?t=${new Date().getTime()}`);
         const data = await response.json();
 
+        document.getElementById('report-title').textContent = data.title;
         document.getElementById('update-time').textContent = data.update_time;
-        document.getElementById('market-status').textContent = data.market_status;
 
-        const portfolioList = document.getElementById('portfolio-list');
-        portfolioList.innerHTML = '';
-        if (Object.keys(data.live_portfolio).length > 0) {
-            for (const [code, details] of Object.entries(data.live_portfolio)) {
-                const li = document.createElement('li');
-                li.textContent = `代码: ${code}, 买入价: ${details.buy_price.toFixed(2)}, 买入日期: ${new Date(details.buy_date).toLocaleString()}`;
-                portfolioList.appendChild(li);
-            }
-        } else {
-            portfolioList.innerHTML = '<li>暂无持仓</li>';
-        }
+        const reportContent = document.getElementById('report-content');
+        reportContent.innerHTML = ''; // 清空旧内容
 
-        const signalsList = document.getElementById('signals-list');
-        signalsList.innerHTML = '';
-        if (data.last_signals.length > 0) {
-            data.last_signals.forEach(signal => {
-                const li = document.createElement('li');
-                li.textContent = signal.replace(/<[^>]*>/g, ' '); // 移除HTML标签，只显示文本
-                signalsList.appendChild(li);
+        if (data.sections && data.sections.length > 0) {
+            data.sections.forEach(section => {
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                const title = document.createElement('h2');
+                title.textContent = section.question;
+                card.appendChild(title);
+
+                const answer = document.createElement('p');
+                // 将换行符转换成<br>标签以在HTML中显示
+                answer.innerHTML = section.answer.replace(/\n/g, '<br>');
+                card.appendChild(answer);
+
+                reportContent.appendChild(card);
             });
         } else {
-            signalsList.innerHTML = '<li>暂无信号</li>';
+            reportContent.innerHTML = '<p>暂无报告内容。</p>';
         }
 
     } catch (error) {
-        console.error('Error fetching status:', error);
+        console.error('Error fetching report:', error);
+        document.getElementById('report-content').innerHTML = '<p>加载报告失败，请检查网络或稍后再试。</p>';
     }
 }
