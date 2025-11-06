@@ -195,7 +195,7 @@ class AiResearchPlatform:
 
     def write_report_to_json(self, report):
         try:
-            with open(BASE_DIR / 'status.json', 'w', encoding='utf-8') as f:
+            with open(BASE_DIR / 'web_dashboard' / 'status.json', 'w', encoding='utf-8') as f:
                 json.dump(report, f, ensure_ascii=False, indent=4)
             print("Pushing report to GitHub...")
             os.system(f"cd {BASE_DIR} && git add status.json && git commit -m \"AI Report: {datetime.now().strftime('%Y-%m-%d')}\" && git push")

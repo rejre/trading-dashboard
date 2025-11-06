@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function fetchReport() {
-    const url = 'https://raw.githubusercontent.com/rejre/trading-dashboard/main/status.json';
+    const url = './status.json';
 
     try {
         const response = await fetch(url + `?t=${new Date().getTime()}`);
