@@ -179,7 +179,7 @@ class AiResearchPlatform:
             })
             time.sleep(1) # 模拟处理时间
         
-        self.write_report_to_json(report)
+        self.write_report_to_html(report)
         self.notifier.send_message(f"✅ **AI投研报告已更新**\n\n报告日期: {datetime.now().strftime('%Y-%m-%d')}\n请访问您的网页查看详情。")
         print("AI投研报告生成并推送完成。")
 
@@ -193,21 +193,28 @@ class AiResearchPlatform:
         else:
             return "这是一个根据问题‘" + question.split('：')[0] + "’生成的模拟答案。在真实系统中，这里将包含通过网络搜索和AI分析得出的深入洞察。"
 
-    def write_report_to_json(self, report):
+    def write_report_to_html(self, report):
         try:
-            with open(BASE_DIR / 'web_dashboard' / 'status.json', 'w', encoding='utf-8') as f:
-                json.dump(report, f, ensure_ascii=False, indent=4)
-            print("Pushing report to GitHub...")
-            os.system(f"cd {BASE_DIR} && git add status.json && git commit -m \"AI Report: {datetime.now().strftime('%Y-%m-%d')}\" && git push")
+            with open(BASE_DIR / 'web_dashboard' / 'index.html', 'r', encoding='utf-8') as f:
+                template = f.read()
+            
+            data_script = f"<script>window.reportData = {json.dumps(report, ensure_ascii=False, indent=4)}</script>"
+            final_html = template.replace("</body>", f"{data_script}\n</body>")
+
+            with open(BASE_DIR / 'web_dashboard' / 'dashboard_latest.html', 'w', encoding='utf-8') as f:
+                f.write(final_html)
+
+            print("Pushing final HTML to GitHub...")
+            os.system(f"cd {BASE_DIR} && git add web_dashboard/dashboard_latest.html && git commit -m \"Update report: {datetime.now().strftime('%Y-%m-%d')}\" && git push origin main:master -f")
         except Exception as e:
-            print(f"[Error] Failed to write or push report: {e}")
+            print(f"[Error] Failed to write or push HTML report: {e}")
 
 # =================== 主程序入口 ===================
 if __name__ == "__main__":
     platform = AiResearchPlatform()
     schedule.every().day.at("08:00").do(platform.generate_daily_report)
     platform.generate_daily_report()
-    print("--- AI投研平台已激活，等待定时任务... ---")
+    print("-- AI投研平台已激活，等待定时任务... --")
     while True:
         schedule.run_pending()
         time.sleep(1)
